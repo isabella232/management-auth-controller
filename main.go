@@ -1,23 +1,43 @@
 package main
 
 import (
+	"context"
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/rancher/types/config"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
-var VERSION = "v0.0.0-dev"
-
+// main is just for testing. The Register function should be called by something else in some other part of rancher
 func main() {
 	app := cli.NewApp()
-	app.Name = "management-auth-controller"
-	app.Version = VERSION
-	app.Usage = "You need help!"
+
 	app.Action = func(c *cli.Context) error {
-		logrus.Info("I'm a turkey")
-		return nil
+		return run()
+	}
+
+	app.ExitErrHandler = func(c *cli.Context, err error) {
+		logrus.Fatal(err)
 	}
 
 	app.Run(os.Args)
+}
+
+func run() error {
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
+	if err != nil {
+		return err
+	}
+
+	management, err := config.NewManagementContext(*kubeConfig)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	Register(ctx, management)
+
+	return management.StartAndWait()
 }
