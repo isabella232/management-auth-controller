@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/rancher/management-auth-controller/controller"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -37,7 +38,7 @@ func run() error {
 	}
 
 	ctx := context.Background()
-	Register(ctx, management)
+	controller.Register(ctx, management)
 
 	return management.StartAndWait()
 }

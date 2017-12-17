@@ -1,4 +1,4 @@
-package main
+package controller
 
 import (
 	"context"
@@ -86,11 +86,8 @@ func (p *prtbLifecycle) ensureBindings(binding *v3.ProjectRoleTemplateBinding) e
 		binding.TypeMeta, proj.ObjectMeta, proj.TypeMeta); err != nil {
 		return err
 	}
-	if err := p.mgr.ensureBinding(clusterRoleName, clusterResource, clusterName, binding.Subject, binding.ObjectMeta,
-		binding.TypeMeta, cluster.ObjectMeta, cluster.TypeMeta); err != nil {
-		return err
-	}
-	return nil
+	return p.mgr.ensureBinding(clusterRoleName, clusterResource, clusterName, binding.Subject, binding.ObjectMeta,
+		binding.TypeMeta, cluster.ObjectMeta, cluster.TypeMeta)
 }
 
 type crtbLifecycle struct {
@@ -125,11 +122,8 @@ func (c *crtbLifecycle) ensureBindings(binding *v3.ClusterRoleTemplateBinding) e
 
 	clusterRoleName := strings.ToLower(fmt.Sprintf("%v-clustermembers", clusterName))
 
-	if err := c.mgr.ensureBinding(clusterRoleName, clusterResource, clusterName, binding.Subject, binding.ObjectMeta,
-		binding.TypeMeta, cluster.ObjectMeta, cluster.TypeMeta); err != nil {
-		return err
-	}
-	return nil
+	return c.mgr.ensureBinding(clusterRoleName, clusterResource, clusterName, binding.Subject, binding.ObjectMeta,
+		binding.TypeMeta, cluster.ObjectMeta, cluster.TypeMeta)
 }
 
 type manager struct {
@@ -174,7 +168,8 @@ func (m *manager) ensureBinding(roleName, resource, resourceName string, subject
 		return err
 	}
 	name := strings.ToLower(fmt.Sprintf("%v-%v-%v", roleName, subject.Kind, subject.Name))
-	if crb, _ := m.crbLister.Get("", name); crb == nil {
+	crb, _ := m.crbLister.Get("", name)
+	if crb == nil {
 		_, err := m.mgmt.RBAC.ClusterRoleBindings("").Create(&v1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
@@ -194,26 +189,25 @@ func (m *manager) ensureBinding(roleName, resource, resourceName string, subject
 			},
 		})
 		return err
-	} else {
-		found := false
-		for _, o := range crb.OwnerReferences {
-			if bindingOwnerMeta.UID == o.UID && bindingOwnerMeta.Name == o.Name {
-				found = true
-				break
-			}
+	}
+	found := false
+	for _, o := range crb.OwnerReferences {
+		if bindingOwnerMeta.UID == o.UID && bindingOwnerMeta.Name == o.Name {
+			found = true
+			break
 		}
-		if !found {
-			crb = crb.DeepCopy()
-			crb.OwnerReferences = append(crb.OwnerReferences, metav1.OwnerReference{
-				APIVersion: bindingOwnerTypeMeta.APIVersion,
-				Kind:       bindingOwnerTypeMeta.Kind,
-				Name:       bindingOwnerMeta.Name,
-				UID:        bindingOwnerMeta.UID,
-			})
-			_, err := m.mgmt.RBAC.ClusterRoleBindings("").Update(crb)
-			if err != nil {
-				return err
-			}
+	}
+	if !found {
+		crb = crb.DeepCopy()
+		crb.OwnerReferences = append(crb.OwnerReferences, metav1.OwnerReference{
+			APIVersion: bindingOwnerTypeMeta.APIVersion,
+			Kind:       bindingOwnerTypeMeta.Kind,
+			Name:       bindingOwnerMeta.Name,
+			UID:        bindingOwnerMeta.UID,
+		})
+		_, err := m.mgmt.RBAC.ClusterRoleBindings("").Update(crb)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
