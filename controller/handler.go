@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -18,29 +17,22 @@ const (
 	clusterResource = "clusters"
 )
 
-func Register(ctx context.Context, management *config.ManagementContext) {
+func newRTBLifecycles(management *config.ManagementContext) (*prtbLifecycle, *crtbLifecycle) {
 	mgr := &manager{
 		mgmt:      management,
-		ctx:       ctx,
 		crbLister: management.RBAC.ClusterRoleBindings("").Controller().Lister(),
 		crLister:  management.RBAC.ClusterRoles("").Controller().Lister(),
 	}
-	prtbLifecycle := &prtbLifecycle{
+	prtb := &prtbLifecycle{
 		mgr:           mgr,
 		projectLister: management.Management.Projects("").Controller().Lister(),
 		clusterLister: management.Management.Clusters("").Controller().Lister(),
 	}
-	crtbLifecycle := &crtbLifecycle{
+	crtb := &crtbLifecycle{
 		mgr:           mgr,
 		clusterLister: management.Management.Clusters("").Controller().Lister(),
 	}
-	grLifecycle := newGlobalRoleLifecycle(management)
-	grbLifecycle := newGlobalRoleBindingLifecycle(management)
-
-	management.Management.ProjectRoleTemplateBindings("").AddLifecycle("mgmt-auth-prtb-controller", prtbLifecycle)
-	management.Management.ClusterRoleTemplateBindings("").AddLifecycle("mgmt-auth-crtb-controller", crtbLifecycle)
-	management.Management.GlobalRoles("").AddLifecycle("mgmt-auth-gr-controller", grLifecycle)
-	management.Management.GlobalRoleBindings("").AddLifecycle("mgmt-auth-grb-controller", grbLifecycle)
+	return prtb, crtb
 }
 
 type prtbLifecycle struct {
@@ -131,7 +123,6 @@ func (c *crtbLifecycle) ensureBindings(binding *v3.ClusterRoleTemplateBinding) e
 }
 
 type manager struct {
-	ctx       context.Context
 	crLister  typesrbacv1.ClusterRoleLister
 	crbLister typesrbacv1.ClusterRoleBindingLister
 	mgmt      *config.ManagementContext
