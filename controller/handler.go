@@ -34,9 +34,13 @@ func Register(ctx context.Context, management *config.ManagementContext) {
 		mgr:           mgr,
 		clusterLister: management.Management.Clusters("").Controller().Lister(),
 	}
+	grLifecycle := newGlobalRoleLifecycle(management)
+	grbLifecycle := newGlobalRoleBindingLifecycle(management)
 
-	management.Management.ProjectRoleTemplateBindings("").AddLifecycle("management-auth-prtb-controller", prtbLifecycle)
-	management.Management.ClusterRoleTemplateBindings("").AddLifecycle("management-auth-crtb-controller", crtbLifecycle)
+	management.Management.ProjectRoleTemplateBindings("").AddLifecycle("mgmt-auth-prtb-controller", prtbLifecycle)
+	management.Management.ClusterRoleTemplateBindings("").AddLifecycle("mgmt-auth-crtb-controller", crtbLifecycle)
+	management.Management.GlobalRoles("").AddLifecycle("mgmt-auth-gr-controller", grLifecycle)
+	management.Management.GlobalRoleBindings("").AddLifecycle("mgmt-auth-grb-controller", grbLifecycle)
 }
 
 type prtbLifecycle struct {
